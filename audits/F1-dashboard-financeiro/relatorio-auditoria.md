@@ -4,8 +4,8 @@
 - Versão: página "Dashboard Financeiro [ATUALIZADO]" (última edição da home: 15/11/2026; Registro de Despesas: 16/11/2026)
 - Segmento: Finanças pessoais
 - Origem: workspace Notion, via conector oficial (MCP)
-- Ambiente: **somente leitura, em produção**. Nenhuma escrita no Notion
-- Status: **Concluído parcialmente** (técnico, UX estrutural e comercial cobertos; fórmulas e QA funcional bloqueados)
+- Ambiente: leitura em produção (nenhuma escrita no original) + **cópia sandbox** autorizada em 20/11/2026: "🧪 SANDBOX QA — Dashboard Financeiro (não usar)" (`41e4e98d4af3816087ccd72f2d473292`)
+- Status: **Concluído parcialmente** (técnico, UX estrutural e comercial cobertos; fórmulas parciais; QA funcional iniciado na sandbox)
 - Base: este relatório revalida e reorganiza a `AUDITORIA-v2.md` no formato do kit e acrescenta a auditoria do material de venda (Hotmart), que não tinha sido feita
 
 ---
@@ -345,8 +345,10 @@ Os valores esperados foram calculados a mão a partir dos dados brutos de hoje. 
 | FORM-005 | Meses out/26 | Sobra / Taxa de poupança | R$ 2.495 / 43,0% | — | NOT TESTED |
 | FORM-006 | Meses out/26 | Saldo em caixa (sobra − aporte) | R$ 1.995 | — | NOT TESTED |
 | FORM-007 | Cartão | Compra depois do fechamento (Streaming em 26/09, Nubank fecha 25) | Competência = nov/26 | Pela leitura da fórmula A: 26 ≥ 25 → fecha out → V(5) < F(25) → vence nov | NOT TESTED (lógica confirmada por leitura; ver também os 4 casos do Inter na seção 5.1) |
-| QA-015 | Terceiros | Lançar R$ 100 no Pix com Responsável do tipo Terceiro | Gastos de consumo inalterado; Terceiros no Mês = 100; Saldo em caixa −100 | Pela fórmula C, o consumo **sobe** 100 | NOT TESTED (falha prevista: FORM-001) |
-| QA-016 | Pendência | Lançamento sem Tipo de Pagamento, com valor | "⚠️ Sem tipo" | Pela fórmula E, nenhuma pendência | NOT TESTED (falha prevista: FORM-002) |
+| QA-015 | Terceiros | Sandbox: "QA-015 Pix pago por terceiro", R$ 100, 18/11/2026, Responsável "QA Terceiro (fictício)" do tipo Terceiro | Gastos de consumo sem os 100; Terceiros no Mês = 100 | Lançamento criado. Valores de rollup e fórmula não são legíveis pelo conector; falta a leitura na tela (ver 6.1) | BLOCKED (falta o print de 11.NOV26 da sandbox) |
+| QA-016 | Pendência | Sandbox: "QA-016 Sem tipo de pagamento", R$ 50, sem Tipo, com Categoria, Responsável e Mês | Aparecer na view Pendências ("Sem tipo") | **Não aparece** na view Pendências da sandbox (consulta em 20/11, 21:0x) | **FAIL** (confirma FORM-002) |
+| QA-017 | Controle | Sandbox: "QA-017 Controle Pix próprio", R$ 30, Pix, Eu | Fora de Pendências; soma 30 em Pagos à vista e no consumo | Fora de Pendências ✔; valores: aguardam print | PASS parcial |
+| QA-018 | Automação | Criar despesa pela API na base duplicada (sandbox) e esperar ~2,5 min | `Mês (auto)` preenchido sozinho | **Continuou vazio** nos 3 lançamentos. Preenchi o mês à mão na sandbox para seguir os testes | **FAIL a classificar**: não se sabe se a automação não foi copiada na duplicação ou se não dispara para criação via API (ver 6.1) |
 | QA-001 | Smoke | Duplicar em conta **Free** nova e lançar 1 despesa | `Mês (auto)` preenchido e home com valor | — | BLOCKED (decide COM-001) |
 | QA-002 | Smoke | Mesmo teste em conta Plus | Idem | — | BLOCKED |
 | QA-003 | Parcelas | Compra 3x no cartão | 3 registros com Categoria, Natureza e Responsável | Dado atual: 2 de 3 sem Categoria | **FAIL por evidência de dado** (não reexecutado) |
@@ -362,7 +364,7 @@ Os valores esperados foram calculados a mão a partir dos dados brutos de hoje. 
 | QA-013 | Celular | Lançamento rápido no app | Conclui em < 1 min | — | NOT TESTED |
 | QA-014 | Botões | 7 botões do Lançamento rápido | Cada um cria um lançamento do tipo certo | Rótulos não legíveis | BLOCKED |
 
-**Cobertura de QA: 0 de 23 casos executados com dado novo.** A seção 5.1 traz 10 observações PASS sobre dados existentes.
+**Cobertura de QA: 4 de 25 casos executados na sandbox** (1 FAIL confirmado, 1 FAIL a classificar, 1 PASS parcial, 1 BLOCKED aguardando print). A seção 5.1 traz 10 observações PASS sobre dados existentes.
 
 ## 7. Plano de correção priorizado — NÃO EXECUTADO
 
@@ -378,6 +380,32 @@ Cada lote precisa da sua aprovação explícita. Proposta: aplicar numa cópia M
 | 4 | P1 | UX-001, UX-002, UX-007, UX-008, COPY-001 | Estratégia de exemplos; Configurações visível; aviso "sem orçamento"; reescrever o callout da dívida | Menu, home, template da dívida | Baixo/Médio | Histórico de versões | Pendente |
 | 5 | P2 | UX-003/004/006, TEC-006 | View "Tudo do mês"; renomear "Saldo em caixa"; ocultar Debug; reduzir views; ordenar Parcelas | Views e nomes de propriedade | Médio (nomes usados em fórmulas: renomear propriedade costuma ser seguro no Notion, mas validar) | Renomear de volta | Pendente |
 | 6 | P3 | TEC-005, UX-005, PD-001, PD-002 | Redesenho do orçamento, Tipo de lançamento, modo Essencial, MASTER única | Estrutura | Alto | Cópia de segurança antes | Pendente |
+
+## 6.1 Sandbox — registro de escrita e checagens pendentes
+
+**O que foi escrito (só na sandbox; o original não foi tocado):**
+
+| Objeto | Ação | Rollback |
+|---|---|---|
+| Página "🧪 SANDBOX QA — Dashboard Financeiro (não usar)" | Duplicada de F1 e renomeada | Apagar a página (exige autorização) |
+| 👥 Responsáveis (sandbox) | + "QA Terceiro (fictício)", Tipo Terceiro | Apagar o registro |
+| Registro de Despesas (sandbox) | + QA-015 (R$ 100), QA-016 (R$ 50) e QA-017 (R$ 30), todos em 18/11/2026, categoria Mercado | Apagar os 3 registros |
+| Mesmos 3 registros | `Mês (auto)` = 11.NOV26, preenchido à mão porque a automação não preencheu (QA-018) | Limpar o campo |
+
+Base de nov/26 na sandbox antes dos testes (igual ao original): Cartões 200, À vista 0, Dívidas 500, Consumo 700, Terceiros 0.
+
+**Leitura esperada em 11.NOV26 da sandbox**, para fechar QA-015 e QA-017:
+
+| Campo | Se FORM-001 estiver certo (bug) | Comportamento correto pelo Guia |
+|---|---:|---:|
+| Pagos à vista | 30 (ou 80, se o lançamento sem tipo contar como à vista) | 30 |
+| Terceiros no Mês | 100 | 100 |
+| Gastos de consumo | **880** (700 + 100 + 50 + 30) | 730 (ou 780 com o lançamento sem tipo) |
+| Saldo em caixa | −880 | −880 (o caixa inclui terceiros, segundo a descrição) |
+
+**Checagem para classificar QA-018:** criar 1 despesa **pela interface do Notion** (botão ou "+ Novo") na sandbox e ver se `Mês (auto)` se preenche.
+- Se preencher: a automação foi copiada e só não dispara para criação via API, então não é problema para o comprador.
+- Se não preencher: a duplicação não leva a automação, e o comprador que duplicar o template fica sem os totais. Isso é crítico e reforça COM-001 e TEC-001.
 
 ## 8. Riscos e limitações
 - Sem leitura de fórmula, um erro lógico que não aparece nos dados de exemplo (ex.: virada de ano, mês vazio, centavos) pode existir sem ser detectado.

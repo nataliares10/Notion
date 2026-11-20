@@ -280,7 +280,7 @@ Esses PASS confirmam a lógica central do cartão com dados reais do template. N
 - **Local:** `📅 Meses → Gastos de consumo` = `Total Despesas - Investimentos no Mês`.
 - **Evidência:** `Total Despesas` é o rollup (soma) da propriedade **number** de Despesas pela relação `Mês (auto)`. A única propriedade numérica de Despesas é `Valor`, então ele soma **tudo**, terceiros incluídos. Já `Cartões no Mês`, `Pagos à vista` e `Dívidas no Mês` somam as versões **"(próprio)"**, que excluem terceiros. A descrição da própria propriedade diz "(cartão + à vista + dívidas)", e o Guia diz que gasto de terceiro "não conta como gasto seu".
 - **Consequência:** quando o comprador usa Responsável do tipo Terceiro (recurso anunciado: "A receber"), o gasto da outra pessoa entra no consumo. Sobra, Taxa de poupança e "vs mês anterior" ficam piores do que a realidade, e o card deixa de bater com Cartões + À vista + Dívidas. Nos dados atuais não aparece porque não há lançamento de terceiro (nov/26 bate: 200 + 0 + 500 = 700).
-- **Severidade:** Alta. **Confiança:** Alta para a lógica, porque o tipo `number` identifica `Valor` sem ambiguidade. O efeito numérico não foi testado.
+- **Severidade:** Alta. **Confiança:** Alta para a lógica, porque o tipo `number` identifica `Valor` sem ambiguidade. **Confirmado na sandbox em 20/11** (QA-015): Gastos de consumo = R$ 880, enquanto Cartões 200 + À vista 80 + Dívidas 500 = R$ 780. A diferença de R$ 100 é exatamente o gasto do terceiro.
 - **Recomendação:** `Cartões no Mês + Pagos à vista + Dívidas no Mês`, ou `Total Despesas - Investimentos no Mês - Terceiros no Mês`. Escolher depois de confirmar onde "Cartão de outra pessoa" é somado (QA-015).
 - **Esforço:** P. **Risco de regressão:** baixo. Afeta Sobra, Taxa de poupança, vs mês anterior e Saldo em caixa; Saldo em caixa deve continuar incluindo terceiros, segundo a descrição dele.
 - **Aceite:** QA-015 em PASS; em out/26 o consumo continua R$ 3.305.
@@ -345,10 +345,10 @@ Os valores esperados foram calculados a mão a partir dos dados brutos de hoje. 
 | FORM-005 | Meses out/26 | Sobra / Taxa de poupança | R$ 2.495 / 43,0% | — | NOT TESTED |
 | FORM-006 | Meses out/26 | Saldo em caixa (sobra − aporte) | R$ 1.995 | — | NOT TESTED |
 | FORM-007 | Cartão | Compra depois do fechamento (Streaming em 26/09, Nubank fecha 25) | Competência = nov/26 | Pela leitura da fórmula A: 26 ≥ 25 → fecha out → V(5) < F(25) → vence nov | NOT TESTED (lógica confirmada por leitura; ver também os 4 casos do Inter na seção 5.1) |
-| QA-015 | Terceiros | Sandbox: "QA-015 Pix pago por terceiro", R$ 100, 18/11/2026, Responsável "QA Terceiro (fictício)" do tipo Terceiro | Gastos de consumo sem os 100; Terceiros no Mês = 100 | Lançamento criado. Valores de rollup e fórmula não são legíveis pelo conector; falta a leitura na tela (ver 6.1) | BLOCKED (falta o print de 11.NOV26 da sandbox) |
-| QA-016 | Pendência | Sandbox: "QA-016 Sem tipo de pagamento", R$ 50, sem Tipo, com Categoria, Responsável e Mês | Aparecer na view Pendências ("Sem tipo") | **Não aparece** na view Pendências da sandbox (consulta em 20/11, 21:0x) | **FAIL** (confirma FORM-002) |
-| QA-017 | Controle | Sandbox: "QA-017 Controle Pix próprio", R$ 30, Pix, Eu | Fora de Pendências; soma 30 em Pagos à vista e no consumo | Fora de Pendências ✔; valores: aguardam print | PASS parcial |
-| QA-018 | Automação | Criar despesa pela API na base duplicada (sandbox) e esperar ~2,5 min | `Mês (auto)` preenchido sozinho | **Continuou vazio** nos 3 lançamentos. Preenchi o mês à mão na sandbox para seguir os testes | **FAIL a classificar**: não se sabe se a automação não foi copiada na duplicação ou se não dispara para criação via API (ver 6.1) |
+| QA-015 | Terceiros | Sandbox: "QA-015 Pix pago por terceiro", R$ 100, 18/11/2026, Responsável "QA Terceiro (fictício)" do tipo Terceiro | Gastos de consumo sem os 100; Terceiros no Mês = 100 | Print de 11.NOV26 da sandbox: **Gastos de consumo R$ 880**, Cartões 200, Pagos à vista 80, Dívidas 500, Sobra −880, Saldo em caixa −880. Componentes somam 780; o consumo tem +100 do terceiro | **FAIL** (confirma FORM-001) |
+| QA-016 | Pendência | Sandbox: "QA-016 Sem tipo de pagamento", R$ 50, sem Tipo, com Categoria, Responsável e Mês | Aparecer na view Pendências ("Sem tipo") | **Não aparece** na view Pendências. Pelo print, os R$ 50 entraram em **Pagos à vista** (80 = 30 + 50): o lançamento sem tipo é tratado em silêncio como gasto à vista | **FAIL** (confirma FORM-002). O total fica coerente, mas o usuário não é avisado |
+| QA-017 | Controle | Sandbox: "QA-017 Controle Pix próprio", R$ 30, Pix, Eu | Fora de Pendências; soma 30 em Pagos à vista e no consumo | Fora de Pendências ✔; os 30 estão em Pagos à vista (80 = 30 + 50) ✔ | **PASS** |
+| QA-018 | Automação | Criar despesa pela API na base duplicada (sandbox) e esperar ~2,5 min | `Mês (auto)` preenchido sozinho | Via API: continuou vazio nos 3 lançamentos (preenchi à mão). **Via interface**: a autora criou a despesa "Internet" na sandbox e o `Mês (auto)` se preencheu sozinho | **PASS** para o uso real. A automação é copiada na duplicação dentro do workspace; o vazio via API é **limitação do conector**, não defeito do template. Não responde se roda no plano Free (COM-001 continua aberto) |
 | QA-001 | Smoke | Duplicar em conta **Free** nova e lançar 1 despesa | `Mês (auto)` preenchido e home com valor | — | BLOCKED (decide COM-001) |
 | QA-002 | Smoke | Mesmo teste em conta Plus | Idem | — | BLOCKED |
 | QA-003 | Parcelas | Compra 3x no cartão | 3 registros com Categoria, Natureza e Responsável | Dado atual: 2 de 3 sem Categoria | **FAIL por evidência de dado** (não reexecutado) |
@@ -364,7 +364,7 @@ Os valores esperados foram calculados a mão a partir dos dados brutos de hoje. 
 | QA-013 | Celular | Lançamento rápido no app | Conclui em < 1 min | — | NOT TESTED |
 | QA-014 | Botões | 7 botões do Lançamento rápido | Cada um cria um lançamento do tipo certo | Rótulos não legíveis | BLOCKED |
 
-**Cobertura de QA: 4 de 25 casos executados na sandbox** (1 FAIL confirmado, 1 FAIL a classificar, 1 PASS parcial, 1 BLOCKED aguardando print). A seção 5.1 traz 10 observações PASS sobre dados existentes.
+**Cobertura de QA: 4 de 25 casos executados na sandbox**: QA-015 FAIL, QA-016 FAIL, QA-017 PASS, QA-018 PASS (uso pela interface). A seção 5.1 traz 10 observações PASS sobre dados existentes.
 
 ## 7. Plano de correção priorizado — NÃO EXECUTADO
 
@@ -402,6 +402,8 @@ Base de nov/26 na sandbox antes dos testes (igual ao original): Cartões 200, À
 | Terceiros no Mês | 100 | 100 |
 | Gastos de consumo | **880** (700 + 100 + 50 + 30) | 730 (ou 780 com o lançamento sem tipo) |
 | Saldo em caixa | −880 | −880 (o caixa inclui terceiros, segundo a descrição) |
+
+**Resultado (20/11):** pela interface, `Mês (auto)` se preencheu. Fica valendo o primeiro caso abaixo.
 
 **Checagem para classificar QA-018:** criar 1 despesa **pela interface do Notion** (botão ou "+ Novo") na sandbox e ver se `Mês (auto)` se preenche.
 - Se preencher: a automação foi copiada e só não dispara para criação via API, então não é problema para o comprador.
